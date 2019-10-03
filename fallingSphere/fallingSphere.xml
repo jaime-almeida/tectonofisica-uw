@@ -1,0 +1,285 @@
+<!-- INPUT FILE FOR UNDERWORLD 1.x MIND THAT THE SCALING FACTOR FOR TIME IS 1e22-->
+
+<StGermainData xmlns="http://www.vpac.org/StGermain/XML_IO_Handler/Jun2003">
+	<list name="import">
+		<param> Underworld </param>
+		<param> CartesianEarthBox </param>
+	</list>
+	<include>/home/filipe/uw/bleedingEdge/CartesianEarthBox/InputFiles/_thermoMechanicalFlow.xml</include>
+	<include>Underworld/REP_Setup.xml</include>
+	<include>Underworld/MaterialIndexField.xml</include>
+	<include>Underworld/ViscosityField.xml</include>
+	<!-- <include>Underworld/TemperatureField.xml</include>
+-->
+	<param name="maxTimeSteps"> 100 </param>
+	<param name="dumpEvery"> 1 </param> <!-- Saving every X timesteps -->
+	<param name="outputPath"> /home/filipe/Documents/UwOutput/FallingSphere</param>
+	<param name="checkpointEvery"> 1 </param> <!-- Allows for a checkpoint system -->
+	<param name="nonLinearTolerance">1e-2</param>
+	<param name="dim"> 2 </param> <!-- 2D or 3D -->
+	
+	<!-- Defining the geometric boundaries -->
+	<param name="minX" units="km"> 0.0  </param>
+	<param name="minY" units="km"> 0.0  </param>
+	<param name="minZ" units="km"> 0.0  </param>
+	
+	<param name="maxX" units="km"> 50 </param>
+	<param name="maxY" units="km"> 50 </param>
+	<param name="maxZ" units="km"> 0.0  </param>
+	
+	<!-- Definining the resolution of a model -->
+	<param name="elementResI"> 64 </param>
+	<param name="elementResJ"> 64 </param>
+	<param name="elementResK"> 1 </param> <!--Not used in 2D -->
+	
+	<param name="Gravity" units="m/s^2"> 9.81 </param>
+
+	<list name="plugins" mergeType="merge">
+		<struct>
+			<param name="Type">StgFEM_FrequentOutput</param>
+			<param name="Context">context</param>
+		</struct>
+		<struct>
+			<param name="Type">Underworld_Vrms</param>
+			<param name="Context">context</param>
+			<param name="GaussSwarm">gaussSwarm</param>
+			<param name="VelocityField">VelocityField</param>
+		</struct>
+		<struct>
+			<param name="Type">StgFEM_CPUTime</param>
+			<param name="Context">context</param>
+		</struct>
+		<struct>
+			<param name="Type">Underworld_PressureCalibration</param>
+			<param name="Context">context</param>
+	      	<param name="UsingTopPressure">true</param>
+		</struct>
+	</list>
+
+
+
+<!--===================================-->
+<!-- THIS IS THE MODEL DEFINITION PART -->
+	<struct name="components" mergeType="merge">
+
+		<struct name="context">
+			<param name="Type">UnderworldContext</param>
+		</struct>
+
+	<struct name="weights" mergeType="replace"> <!-- Particle population control (PPC) -->
+		<param name="Inflow">True</param> <!--important for open boundary-->
+		<param name="Type">PCDVC</param>
+		<param name="resolutionX">20</param>
+		<param name="resolutionY">20</param>
+		<param name="resolutionZ">20</param>
+		<param name="lowerT">5</param>  
+		<param name="upperT">35</param>  
+		<param name="maxDeletions">5</param>
+		<param name="maxSplits">5</param>
+		<!--<param name="splitInInterfaceCells">true</param>-->
+		<!--<param name="splitInInterfaceCells">false</param>-->
+		<param name="MaterialPointsSwarm">materialSwarm</param>
+	</struct>
+
+<!--just means that scaling is of-->      
+  <struct name="default_scaling">
+	 <param name="Type">Scaling</param>
+	 <param name="spaceCoefficient_meters">       1  </param>
+	 <param name="timeCoefficient_seconds">       1  </param>
+	 <param name="massCoefficient_kilograms">     1  </param>
+	 <param name="temperatureCoefficient_kelvin"> 1  </param>
+	</struct>
+
+<!--MATERIALS AND RHEOLOGIES-->
+	<struct name="everywhere">
+		<param name="Type">Everywhere</param>
+	</struct>
+	
+	<struct name="viscosityLimiter">
+	  <param name="Type">ViscosityLimiter</param>
+	  <param name="maxViscosity" units="Pa*s">1e2</param>
+	  <param name="minViscosity" units="Pa*s">1e-4</param>
+	</struct>
+	
+	<!--Defining shapes-->
+	<struct name="boxShape">
+		<param name="Type">Box</param>
+		<param name="startX" units="km"> 0.0 </param>
+		<param name="endX" units="km"> 50.0 </param>
+		<param name="startY" units="km"> 0 </param>
+		<param name="endY" units="km"> 50.0 </param>
+	</struct>
+	<struct name="sphereShape">
+	   <param name="Type">Sphere</param>
+	   <param name="CentreX" units="km">25.0</param>
+	   <param name="CentreY" units="km">40.0</param>
+	   <param name="radius" units="km">5</param>
+	</struct>
+
+	<!-- Defining rheologies -->
+	<struct name="weakViscosity">
+		<param name="Type">MaterialViscosity</param>
+		<param name="eta0" units="Pa*s">1e-4</param>
+	</struct> 
+	<struct name="strongViscosity">
+		<param name="Type">MaterialViscosity</param>
+		<param name="eta0" units="Pa*s">1e-2</param>
+	</struct> 
+	
+	<!-- Attributing rheologies to shapes -->
+	<struct name="boxRheology">
+		<param name="Type">RheologyMaterial</param>
+		<param name="Shape">boxShape</param>
+		<list name="Rheology">
+			<param>weakViscosity</param> <!--attributes visc.-->
+			<param>viscosityLimiter</param> 	<!-- preestablishes a limit for visc. -->
+		</list>
+	<param name="CpLabel" units="J/(kg*K)"> 0 </param>
+    <param name="DiffusivityLabel"> 1e17 </param>
+    <param name="DensityLabel" units="kg/(m*m*m)"> 1000. </param>
+    <param name="ThermalExpansivityLabel" units="K^-1"> 0 </param>
+    <param name="RadiogenicHeatProductionLabel" units="kg/(m*s*s*s)"> 0 </param>
+    <param name="LatentHeatFusionLabel"> 0.0 </param>
+	</struct> 
+	
+	<struct name="sphereRheology">
+    <param name="Type">RheologyMaterial</param>
+    <param name="Shape">sphereShape</param>
+     <list name="Rheology">
+	      <param>strongViscosity</param>
+	      <param>viscosityLimiter</param>
+     </list>
+    <param name="CpLabel" units="J/(kg*K)"> 0 </param>
+    <param name="DiffusivityLabel"> 1e17 </param>
+    <param name="DensityLabel" units="kg/(m*m*m)"> 3000. </param>
+    <param name="ThermalExpansivityLabel" units="K^-1"> 0 </param>
+    <param name="RadiogenicHeatProductionLabel" units="kg/(m*s*s*s)"> 0 </param>
+    <param name="LatentHeatFusionLabel"> 0.0 </param>
+	</struct>  
+	
+	
+<!--END OF MATERIALS AND RHEOLOGIES-->
+
+
+	<!-- SCALING: 'outputUnits' for the StrainRateInvariantField in 1/seconds -->
+	<struct name="StrainRateInvariantField" mergeType="merge">
+		<param name="outputUnits" mergeType="replace">s^-1</param>
+	</struct>
+
+	</struct>
+<!-- THIS IS THE END OF THE MODEL DEFINITION PART -->
+<!--==============================================-->
+
+<!-- ADDING THE NEW THERMOMECHANICAL INFO -->
+ <struct mergeType="merge" name="components">
+        <struct name="sourceTerms_thermalEqn">
+            <param name="Type">Ppc_Operation</param>
+            <param name="Operation"> + </param>
+            <list name="Properties">
+                <param> radiogenicHeating </param>
+            </list>
+        </struct>
+
+        <struct name="radiogenicHeating">
+            <param name="Type">Ppc_Operation</param>
+            <param name="Operation"> / </param>
+            <list name="Properties">
+                <param>RadiogenicHeatProductionLabel</param>
+                <param>rho_cp</param>
+            </list>
+        </struct>
+        <struct name="rho_cp">
+            <param name="Type">Ppc_Operation</param>
+            <param name="Operation"> * </param>
+            <list name="Properties">
+                <param>DensityLabel</param>
+                <param>CpLabel</param>
+            </list>
+        </struct>
+
+        <struct name="thermalEqn">
+            <param name="Type">VectorAssemblyTerm_NA__F</param>
+            <param name="ForceVector">residual</param>
+            <param name="functionLabel">sourceTerms_thermalEqn</param>
+            <param name="Swarm">picIntegrationPoints</param>
+            <param name="Manager">default_ppcManager</param>
+        </struct>
+
+        <struct name="viscousHeating">
+            <param name="Type"> ViscousHeatingTermPpc </param>
+            <param name="ForceVector">residual</param>
+            <param name="EnergyEqn">EnergyEqn</param>
+            <param name="Swarm">picIntegrationPoints</param>
+            <param name="DeviatoricStressField"> recoveredDeviatoricStressField </param>
+            <param name="StrainRateField"> StrainRateField </param>
+            <param name="DensityLabel"> DensityLabel </param>
+            <param name="CpLabel"> CpLabel </param>
+            <param name="ScalingFactor"> 1.0 </param>
+        </struct>
+
+       <struct name="adiabaticHeating">
+            <param name="Type"> AdiabaticHeatingTermPpc </param>
+            <param name="ForceVector"> residual </param>
+            <param name="EnergyEqn"> EnergyEqn </param>
+            <param name="Swarm"> picIntegrationPoints </param>
+            <param name="VelocityField"> VelocityField </param>
+            <param name="TemperatureField"> TemperatureField </param>
+            <param name="PressureField"> PressureField </param>
+            <param name="CpLabel"> CpLabel </param>
+            <param name="ThermalExpansivityLabel"> ThermalExpansivityLabel </param>
+            <param name="ExternalFunction"> 1.0 </param>
+        </struct>
+
+        <struct mergeType="replace" name="defaultResidualForceTerm">
+            <param name="Type">SUPGAdvDiffTermPpc</param>
+            <param name="ForceVector">residual</param>
+            <param name="EnergyEqn">EnergyEqn</param>
+            <param name="Swarm">picIntegrationPoints</param>
+            <param name="VelocityField">VelocityField</param>
+            <param name="PhiField">TemperatureField</param>
+            <param name="DiffusivityLabel">DiffusivityLabel</param>
+        </struct>
+    </struct>
+
+
+	<!--   choose what to checkpoint -->
+	<list name="FieldVariablesToCheckpoint" mergeType="merge">
+		<param>ViscosityField</param>
+		<param>MaterialIndexField</param>
+		<param>HasYieldedField</param>
+		<param>TemperatureField</param>
+	</list>
+
+	<!-- general decomposition parameters -->
+	<param name="shadowDepth"> 1 </param>
+	<param name="allowUnbalancing"> True </param>
+	<param name="buildElementNodeTbl"> True </param>
+	<param name="particleLayoutType"> random </param>
+	<param name="particlesPerCell"> 20 </param> <!--some value for now-->
+	<param name="seed"> 13 </param>
+
+
+	<include> fallingSphere_V.xml</include> 	<!-- Including the Velocity files. Important -->
+
+
+<!--
+	<include>Underworld/BaseApps/SemiLagrangianADESolverHijack.xml </include>
+ 	<struct name="components" mergeType="merge">
+		<struct name="diffusivityPpc" mergeType="replace">
+			<param name="Type">Ppc_Constant</param>
+			<param name="Value" units="m*m/s">1e16</param>
+		</struct>
+	</struct>
+-->
+
+	<param name="courantFactor">0.5</param>	<!--Stability criterion. should not be above 0.5 -->
+	<struct name="components" mergeType="merge">
+		<struct name="linearMeshGenerator" mergeType="merge">
+			<param name="periodic_x">False</param>
+		</struct>
+		<struct type="struct" name="sourceTerm" mergeType="replace">
+			<param name="Type">DummyComponent</param>
+		</struct>
+ 	</struct>
+
+</StGermainData>
